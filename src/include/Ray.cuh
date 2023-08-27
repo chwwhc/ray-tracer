@@ -10,8 +10,14 @@ struct Ray
     __device__ Ray() = default;
     __device__ Ray(const Point3D &origin, const Vec3 &direction) : origin(origin), direction(direction) {}
 
-    __device__ Point3D at(float t) const
+
+    /**
+     * @brief Returns the point at a given distance along the ray
+     * @param dist Distance along the ray
+     * @return Point at a given distance along the ray
+    */
+    __device__ Point3D at(float dist) const
     {
-        return origin + t * direction;
+        return origin + dist * direction;
     }
 };

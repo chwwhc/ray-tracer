@@ -28,6 +28,13 @@ public:
         this->lens_radius = aperture / 2.0f;
     }
 
+    /**
+     * @brief Get the Ray object
+     * @param s horizontal offset
+     * @param t vertical offset
+     * @param rand_state random state
+     * @return Ray
+     */
     __device__ Ray getRay(float s, float t, curandState *rand_state) const
     {
         Vec3 rd = lens_radius * randomInUnitDisk(rand_state);

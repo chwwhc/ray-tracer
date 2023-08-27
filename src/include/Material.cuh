@@ -2,6 +2,7 @@
 
 #include "Util.cuh"
 #include "Hittable.cuh"
+#include "Texture.cuh"
 
 struct HitRecord;
 
@@ -12,13 +13,24 @@ struct Material
      * attenuation: reflection rate of each color channel
      */
     __device__ virtual bool scatter(const Ray &r_in, const HitRecord &rec, Color &attenuation, Ray &scattered, curandState* rand_state) const = 0;
+
+    __device__ virtual Color emitted(float u, float v, const Point3D &p) const
+    {
+        return Color(0.0f, 0.0f, 0.0f);
+    }
+
+    //__device__ virtual ~Material() {}
 };
 
 struct Lambertian : Material
 {
-    Color albedo; // reflection rate
+    Texture* albedo; // reflection rate
 
-    __device__ Lambertian(const Color &albedo) : albedo(albedo) {}
+    __device__ Lambertian(Color albedo) : albedo(new SolidColor(albedo)) {}
+
+    __device__ Lambertian(Texture* albedo) : albedo(albedo) {}
+
+    //__device__ ~Lambertian() override
 
     __device__ virtual bool scatter(const Ray &r_in, const HitRecord &rec, Color &attenuation, Ray &scattered, curandState* rand_state) const override
     {
@@ -29,7 +41,7 @@ struct Lambertian : Material
             scatter_direction = rec.normal;
 
         scattered = Ray(rec.hit_point, scatter_direction);
-        attenuation = albedo;
+        attenuation = albedo->value(rec.u, rec.v, rec.hit_point);
         return true;
     }
 };
@@ -40,6 +52,8 @@ struct Metal : Material
     float fuzz;
 
     __device__ Metal(const Color &albedo, float fuzz) : albedo(albedo), fuzz(fuzz < 1.0f ? fuzz : 1.0f) {}
+
+    //__device__ ~Metal() override {}
 
     __device__ virtual bool scatter(const Ray &r_in, const HitRecord &rec, Color &attenuation, Ray &scattered, curandState* rand_state) const override
     {
@@ -65,13 +79,15 @@ public:
 
     __device__ Dielectric(float idx_refra) : idx_refra(idx_refra) {}
 
+    //__device__ ~Dielectric() override {}
+
     __device__ virtual bool scatter(const Ray &r_in, const HitRecord &rec, Color &attenuation, Ray &scattered, curandState* rand_state) const override
     {
         attenuation = Color(1.0f, 1.0f, 1.0f);
         float refraction_ratio = rec.is_front_face ? (1.0f / idx_refra) : idx_refra;
 
         Vec3 unit_dir = unitVec(r_in.direction);
-        float cos_theta = min(dotProd(-unit_dir, rec.normal), 1.0f);
+        float cos_theta = fmin(dotProd(-unit_dir, rec.normal), 1.0f);
         float sin_theta = sqrt(1.0f - cos_theta * cos_theta);
 
         bool cannot_refract = refraction_ratio * sin_theta > 1.0f;
@@ -79,5 +95,27 @@ public:
 
         scattered = Ray(rec.hit_point, dir);
         return true;
+    }
+};
+
+class DiffuseLight : public Material
+{
+    Texture* emit;
+
+public:
+    __device__ DiffuseLight(Texture* emit) : emit(emit) {}
+
+    __device__ DiffuseLight(Color c) : emit(new SolidColor(c)) {}
+
+    //__device__ ~DiffuseLight() override {}
+
+    __device__ virtual bool scatter(const Ray &r_in, const HitRecord &rec, Color &attenuation, Ray &scattered, curandState* rand_state) const override
+    {
+        return false;
+    }
+
+    __device__ virtual Color emitted(float u, float v, const Point3D &p) const override
+    {
+        return emit->value(u, v, p);
     }
 };

@@ -207,7 +207,7 @@ __host__ __device__ inline Vec3 reflect(const Vec3 &v, const Vec3 &n)
 
 __host__ __device__ inline Vec3 refract(const Vec3 &uv, const Vec3 &n, float eta_ratio)
 {
-    float cos_theta = min(dotProd(-uv, n), 1.0f);
+    float cos_theta = fmin(dotProd(-uv, n), 1.0f);
     Vec3 r_out_perp = eta_ratio * (uv + cos_theta * n);
     Vec3 r_out_par = -sqrt(abs(1.0f - r_out_perp.squaredLength())) * n;
     return r_out_perp + r_out_par;
